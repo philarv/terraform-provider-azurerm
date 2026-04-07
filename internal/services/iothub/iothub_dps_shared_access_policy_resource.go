@@ -124,8 +124,8 @@ func resourceIotHubDPSSharedAccessPolicyCreateUpdate(d *pluginsdk.ResourceData, 
 
 	iothubDpsId := commonids.NewProvisioningServiceID(subscriptionId, d.Get("resource_group_name").(string), d.Get("iothub_dps_name").(string))
 
-	locks.ByName(iothubDpsId.ProvisioningServiceName, IothubResourceName)
-	defer locks.UnlockByName(iothubDpsId.ProvisioningServiceName, IothubResourceName)
+	locks.ByName(iothubDpsId.ProvisioningServiceName, iothubResourceName)
+	defer locks.UnlockByName(iothubDpsId.ProvisioningServiceName, iothubResourceName)
 
 	iothubDps, err := client.Get(ctx, iothubDpsId)
 	if err != nil {
@@ -267,8 +267,8 @@ func resourceIotHubDPSSharedAccessPolicyDelete(d *pluginsdk.ResourceData, meta i
 		return err
 	}
 
-	locks.ByName(id.ProvisioningServiceName, IothubResourceName)
-	defer locks.UnlockByName(id.ProvisioningServiceName, IothubResourceName)
+	locks.ByName(id.ProvisioningServiceName, iothubResourceName)
+	defer locks.UnlockByName(id.ProvisioningServiceName, iothubResourceName)
 
 	iothubDpsId := commonids.NewProvisioningServiceID(id.SubscriptionId, id.ResourceGroupName, id.ProvisioningServiceName)
 	iothubDps, err := client.Get(ctx, iothubDpsId)

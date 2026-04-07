@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/locks"
 	eventhubValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/eventhub/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/iothub/migration"
@@ -35,9 +36,7 @@ import (
 	devices "github.com/jackofallops/kermit/sdk/iothub/2022-04-30-preview/iothub"
 )
 
-// TODO: outside of this pr make this private
-
-var IothubResourceName = "azurerm_iothub"
+const iothubResourceName = "azurerm_iothub"
 
 // nolint unparam
 func suppressIfTypeIsNot(t string) pluginsdk.SchemaDiffSuppressFunc {
@@ -57,20 +56,8 @@ func suppressIfTypeIs(t string) pluginsdk.SchemaDiffSuppressFunc {
 	}
 }
 
-// nolint unparam
-func suppressWhenAny(fs ...pluginsdk.SchemaDiffSuppressFunc) pluginsdk.SchemaDiffSuppressFunc {
-	return func(k, old, new string, d *pluginsdk.ResourceData) bool {
-		for _, f := range fs {
-			if f(k, old, new, d) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
 func resourceIotHub() *pluginsdk.Resource {
-	return &pluginsdk.Resource{
+	r := &pluginsdk.Resource{
 		Create: resourceIotHubCreate,
 		Read:   resourceIotHubRead,
 		Update: resourceIotHubUpdate,
@@ -594,6 +581,7 @@ func resourceIotHub() *pluginsdk.Resource {
 				Type:     pluginsdk.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Default:  "1.2",
 				ValidateFunc: validation.StringInSlice([]string{
 					"1.2",
 				}, false),
@@ -641,6 +629,20 @@ func resourceIotHub() *pluginsdk.Resource {
 			"tags": commonschema.Tags(),
 		},
 	}
+
+	if !features.FivePointOh() {
+		r.Schema["min_tls_version"] = &pluginsdk.Schema{
+			Type:     pluginsdk.TypeString,
+			Optional: true,
+			Computed: true,
+			ForceNew: true,
+			ValidateFunc: validation.StringInSlice([]string{
+				"1.2",
+			}, false),
+		}
+	}
+
+	return r
 }
 
 func resourceIotHubCreate(d *pluginsdk.ResourceData, meta interface{}) error {
@@ -651,29 +653,27 @@ func resourceIotHubCreate(d *pluginsdk.ResourceData, meta interface{}) error {
 
 	id := parse.NewIotHubID(subscriptionId, d.Get("resource_group_name").(string), d.Get("name").(string))
 
-	locks.ByName(id.Name, IothubResourceName)
-	defer locks.UnlockByName(id.Name, IothubResourceName)
+	locks.ByName(id.Name, iothubResourceName)
+	defer locks.UnlockByName(id.Name, iothubResourceName)
 
-	if d.IsNewResource() {
-		existing, err := client.Get(ctx, id.ResourceGroup, id.Name)
-		if err != nil {
-			if !utils.ResponseWasNotFound(existing.Response) {
-				return fmt.Errorf("checking for presence of %s: %+v", id, err)
-			}
-		}
-
+	existing, err := client.Get(ctx, id.ResourceGroup, id.Name)
+	if err != nil {
 		if !utils.ResponseWasNotFound(existing.Response) {
-			return tf.ImportAsExistsError("azurerm_iothub", id.ID())
+			return fmt.Errorf("checking for presence of %s: %+v", id, err)
 		}
-		res, err := client.CheckNameAvailability(ctx, devices.OperationInputs{Name: &id.Name})
-		if err != nil {
-			return fmt.Errorf("an error occurred checking if the IoTHub name was unique: %+v", err)
-		}
+	}
 
-		if !*res.NameAvailable {
-			if _, err = client.Get(ctx, id.ResourceGroup, id.Name); err == nil {
-				return fmt.Errorf("an IoTHub already exists with the name %q - please choose an alternate name: %s", id.Name, string(res.Reason))
-			}
+	if !utils.ResponseWasNotFound(existing.Response) {
+		return tf.ImportAsExistsError("azurerm_iothub", id.ID())
+	}
+	res, err := client.CheckNameAvailability(ctx, devices.OperationInputs{Name: &id.Name})
+	if err != nil {
+		return fmt.Errorf("an error occurred checking if the IoTHub name was unique: %+v", err)
+	}
+
+	if !*res.NameAvailable {
+		if _, err = client.Get(ctx, id.ResourceGroup, id.Name); err == nil {
+			return fmt.Errorf("an IoTHub already exists with the name %q - please choose an alternate name: %s", id.Name, string(res.Reason))
 		}
 	}
 
@@ -796,8 +796,8 @@ func resourceIotHubUpdate(d *pluginsdk.ResourceData, meta interface{}) error {
 		return fmt.Errorf("parsing %s: %+v", id, err)
 	}
 
-	locks.ByName(id.Name, IothubResourceName)
-	defer locks.UnlockByName(id.Name, IothubResourceName)
+	locks.ByName(id.Name, iothubResourceName)
+	defer locks.UnlockByName(id.Name, iothubResourceName)
 
 	iothub, err := client.Get(ctx, id.ResourceGroup, id.Name)
 	if err != nil {
@@ -977,8 +977,6 @@ func resourceIotHubUpdate(d *pluginsdk.ResourceData, meta interface{}) error {
 		return fmt.Errorf("waiting for creation/update of %q: %+v", id, err)
 	}
 
-	d.SetId(id.ID())
-
 	return resourceIotHubRead(d, meta)
 }
 
@@ -1119,8 +1117,8 @@ func resourceIotHubDelete(d *pluginsdk.ResourceData, meta interface{}) error {
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
-	locks.ByName(id.Name, IothubResourceName)
-	defer locks.UnlockByName(id.Name, IothubResourceName)
+	locks.ByName(id.Name, iothubResourceName)
+	defer locks.UnlockByName(id.Name, iothubResourceName)
 
 	future, err := client.Delete(ctx, id.ResourceGroup, id.Name)
 	if err != nil {

@@ -175,8 +175,8 @@ func (r IotHubEndpointCosmosDBAccountResource) Create() sdk.ResourceFunc {
 
 			id := parse.NewEndpointCosmosDBAccountID(subscriptionId, iotHubId.ResourceGroup, iotHubId.Name, state.Name)
 
-			locks.ByName(iotHubId.Name, IothubResourceName)
-			defer locks.UnlockByName(iotHubId.Name, IothubResourceName)
+			locks.ByName(iotHubId.Name, iothubResourceName)
+			defer locks.UnlockByName(iotHubId.Name, iothubResourceName)
 
 			iothub, err := client.Get(ctx, iotHubId.ResourceGroup, iotHubId.Name)
 			if err != nil {
@@ -349,8 +349,8 @@ func (r IotHubEndpointCosmosDBAccountResource) Update() sdk.ResourceFunc {
 				return err
 			}
 
-			locks.ByName(id.IotHubName, IothubResourceName)
-			defer locks.UnlockByName(id.IotHubName, IothubResourceName)
+			locks.ByName(id.IotHubName, iothubResourceName)
+			defer locks.UnlockByName(id.IotHubName, iothubResourceName)
 
 			var state IotHubEndpointCosmosDBAccountModel
 			if err = metadata.Decode(&state); err != nil {
@@ -458,8 +458,8 @@ func (r IotHubEndpointCosmosDBAccountResource) Delete() sdk.ResourceFunc {
 				return err
 			}
 
-			locks.ByName(id.IotHubName, IothubResourceName)
-			defer locks.UnlockByName(id.IotHubName, IothubResourceName)
+			locks.ByName(id.IotHubName, iothubResourceName)
+			defer locks.UnlockByName(id.IotHubName, iothubResourceName)
 
 			iothub, err := client.Get(ctx, id.ResourceGroup, id.IotHubName)
 			if err != nil {

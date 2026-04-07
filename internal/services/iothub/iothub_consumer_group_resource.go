@@ -78,8 +78,8 @@ func resourceIotHubConsumerGroupCreate(d *pluginsdk.ResourceData, meta interface
 
 	id := parse.NewConsumerGroupID(subscriptionId, d.Get("resource_group_name").(string), d.Get("iothub_name").(string), d.Get("eventhub_endpoint_name").(string), d.Get("name").(string))
 
-	locks.ByName(id.IotHubName, IothubResourceName)
-	defer locks.UnlockByName(id.IotHubName, IothubResourceName)
+	locks.ByName(id.IotHubName, iothubResourceName)
+	defer locks.UnlockByName(id.IotHubName, iothubResourceName)
 
 	if d.IsNewResource() {
 		existing, err := client.GetEventHubConsumerGroup(ctx, id.ResourceGroup, id.IotHubName, id.EventHubEndpointName, id.Name)
@@ -162,8 +162,8 @@ func resourceIotHubConsumerGroupDelete(d *pluginsdk.ResourceData, meta interface
 		return err
 	}
 
-	locks.ByName(id.IotHubName, IothubResourceName)
-	defer locks.UnlockByName(id.IotHubName, IothubResourceName)
+	locks.ByName(id.IotHubName, iothubResourceName)
+	defer locks.UnlockByName(id.IotHubName, iothubResourceName)
 
 	resp, err := client.DeleteEventHubConsumerGroup(ctx, id.ResourceGroup, id.IotHubName, id.EventHubEndpointName, id.Name)
 	if err != nil {
